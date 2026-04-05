@@ -1,4 +1,4 @@
-name: Notify KakaoWork
+name: Notify Email
 
 on:
   schedule:
@@ -31,8 +31,13 @@ jobs:
 
           echo "value=${url}" >> "$GITHUB_OUTPUT"
 
-      - name: Send KakaoWork message
+      - name: Send newsletter email
         env:
-          KAKAOWORK_WEBHOOK_URL: ${{ secrets.KAKAOWORK_WEBHOOK_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
           NEWSLETTER_URL: ${{ steps.url.outputs.value }}
-        run: node .github/scripts/send-kakaowork.js
+        run: python3 .github/scripts/send_email.py
