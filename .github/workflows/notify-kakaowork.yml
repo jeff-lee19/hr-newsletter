@@ -1,0 +1,38 @@
+name: Notify KakaoWork
+
+on:
+  schedule:
+    - cron: "0 23 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compute newsletter URL
+        id: url
+        shell: bash
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER}"
+          repo="${GITHUB_REPOSITORY#*/}"
+
+          if [[ "${repo}" == "${owner}.github.io" ]]; then
+            url="https://${owner}.github.io/"
+          else
+            url="https://${owner}.github.io/${repo}/"
+          fi
+
+          echo "value=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Send KakaoWork message
+        env:
+          KAKAOWORK_WEBHOOK_URL: ${{ secrets.KAKAOWORK_WEBHOOK_URL }}
+          NEWSLETTER_URL: ${{ steps.url.outputs.value }}
+        run: node .github/scripts/send-kakaowork.js
