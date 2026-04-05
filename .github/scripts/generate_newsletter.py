@@ -10,7 +10,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise SystemExit("Missing OPENAI_API_KEY.")
 
-OPENAI_MODEL = os.getenv("OPENAI_MODEL") or "gpt-5"
+OPENAI_MODEL = os.getenv("OPENAI_MODEL") or "gpt-5-mini"
 TIMEZONE_NOTE = "Asia/Seoul"
 
 SECTION_CONFIG = [
@@ -167,7 +167,7 @@ def call_section_generation(section, week_start, week_end, edition_label):
     response = post_openai(
         {
             "model": OPENAI_MODEL,
-            "reasoning": {"effort": "medium"},
+            "reasoning": {"effort": "low"},
             "tools": [
                 {
                     "type": "web_search",
