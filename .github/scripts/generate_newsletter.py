@@ -1,9 +1,10 @@
 import json
 import os
 import re
+import time
 from datetime import datetime, timedelta
 from html import escape
-from urllib import request
+from urllib import error, request
 
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -81,7 +82,7 @@ SECTION_CONFIG = [
 ]
 
 
-def post_openai(payload):
+def post_openai(payload, retries=4):
     req = request.Request(
         "https://api.openai.com/v1/responses",
         data=json.dumps(payload).encode("utf-8"),
@@ -91,8 +92,19 @@ def post_openai(payload):
         },
         method="POST",
     )
-    with request.urlopen(req) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+
+    for attempt in range(retries):
+        try:
+            with request.urlopen(req) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            if exc.code == 429 and attempt < retries - 1:
+                wait_seconds = 2 ** attempt
+                print(f"Rate limited by OpenAI API. Retrying in {wait_seconds}s...")
+                time.sleep(wait_seconds)
+                continue
+            raise RuntimeError(f"OpenAI API error {exc.code}: {body}") from exc
 
 
 def extract_text(response_json):
@@ -118,25 +130,34 @@ def parse_json_text(raw_text):
     return json.loads(text)
 
 
-def call_section_generation(section, week_start, week_end, edition_label):
+def call_all_sections_generation(week_start, week_end):
+    section_brief = [
+        {
+            "section_id": section["id"],
+            "title": section["title"],
+            "accent": section["accent"],
+            "non_labor_label": section["non_labor_label"],
+            "domains": section["domains"],
+            "focus": section["focus"],
+        }
+        for section in SECTION_CONFIG
+    ]
+
     prompt = f"""
 당신은 HR 편집장입니다.
 아래 조건을 모두 만족하는 JSON만 반환하세요.
 
 - 집계 기간: {week_start} ~ {week_end} (KST 기준)
-- 섹션: {section["title"]}
-- 섹션 포커스: {section["focus"]}
-- 허용 도메인: {", ".join(section["domains"])}
-- 결과는 정확히 3개 기사
-- 3개 중 정확히 1개는 노무/노사/임단협/노동시장/고용규제/근로조건 이슈여야 하며 "label"은 "노무"
-- 나머지 2개는 "{section["non_labor_label"]}" 라벨 사용
+- 아래 4개 섹션 각각에 대해 결과를 정확히 3개 기사씩 반환
+- 각 섹션 3개 중 정확히 1개는 노무/노사/임단협/노동시장/고용규제/근로조건 이슈여야 하며 "label"은 "노무"
+- 각 섹션의 나머지 2개는 해당 섹션의 "non_labor_label" 값을 사용
 - 기사 날짜는 반드시 집계 기간 안이어야 함
 - 공개적으로 접근 가능한 기사만 사용
 - URL은 실제 기사 원문 URL 전체를 넣기
 - 불확실하거나 검증이 어려우면 placeholder를 쓰지 말고, 대신 기간 안의 다른 기사로 대체
 - 기간 내 기사 3개를 못 찾으면 마지막 수단으로 다음 placeholder 객체를 사용:
   {{
-    "label": "노무" 또는 "{section["non_labor_label"]}",
+    "label": "노무" 또는 각 섹션의 non_labor_label,
     "source_name": "확인 불가",
     "published_date": "{week_end}",
     "title": "이번 주 확인 가능한 공개 자료 없음",
@@ -147,21 +168,28 @@ def call_section_generation(section, week_start, week_end, edition_label):
 
 반환 형식:
 {{
-  "section_id": "{section["id"]}",
-  "items": [
+  "sections": [
     {{
-      "label": "노무 또는 {section["non_labor_label"]}",
-      "source_name": "매체명",
-      "published_date": "YYYY-MM-DD",
-      "title": "기사 제목",
-      "summary": "2문장 이내 한국어 요약",
-      "hr_takeaway": "HR 담당자 주목 한 줄",
-      "url": "https://..."
+      "section_id": "global|venture|korea|consulting",
+      "items": [
+        {{
+          "label": "노무 또는 각 섹션의 non_labor_label",
+          "source_name": "매체명",
+          "published_date": "YYYY-MM-DD",
+          "title": "기사 제목",
+          "summary": "2문장 이내 한국어 요약",
+          "hr_takeaway": "HR 담당자 주목 한 줄",
+          "url": "https://..."
+        }}
+      ]
     }}
   ]
 }}
 
 반드시 JSON만 반환하세요.
+
+섹션 정보:
+{json.dumps(section_brief, ensure_ascii=False)}
 """
 
     response = post_openai(
@@ -171,7 +199,11 @@ def call_section_generation(section, week_start, week_end, edition_label):
             "tools": [
                 {
                     "type": "web_search",
-                    "filters": {"allowed_domains": section["domains"]},
+                    "filters": {
+                        "allowed_domains": sorted(
+                            {domain for section in SECTION_CONFIG for domain in section["domains"]}
+                        )
+                    },
                     "user_location": {
                         "type": "approximate",
                         "country": "KR",
@@ -186,7 +218,8 @@ def call_section_generation(section, week_start, week_end, edition_label):
         }
     )
 
-    return parse_json_text(extract_text(response))
+    payload = parse_json_text(extract_text(response))
+    return payload["sections"]
 
 
 def call_weekly_summary(section_payloads, week_start, week_end, edition_label):
@@ -350,10 +383,7 @@ def main():
     week_end = week_end_dt.strftime("%Y-%m-%d")
     edition_label = edition_label_for(week_start_dt)
 
-    section_payloads = []
-    for section in SECTION_CONFIG:
-        payload = call_section_generation(section, week_start, week_end, edition_label)
-        section_payloads.append(payload)
+    section_payloads = call_all_sections_generation(week_start, week_end)
 
     weekly_summary = call_weekly_summary(section_payloads, week_start, week_end, edition_label)
     html = build_html(edition_label, week_start, week_end, weekly_summary, section_payloads)
