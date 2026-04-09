@@ -1,8 +1,10 @@
 name: Notify Email
 
 on:
-  schedule:
-    - cron: "0 23 * * 0"
+  workflow_run:
+    workflows: ["Deploy Newsletter Site"]
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -10,11 +12,14 @@ permissions:
 
 jobs:
   notify:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || 'main' }}
 
       - name: Compute newsletter URL
         id: url
@@ -30,6 +35,11 @@ jobs:
           fi
 
           echo "value=${url}" >> "$GITHUB_OUTPUT"
+
+      - name: Show source revision
+        shell: bash
+        run: |
+          git rev-parse HEAD
 
       - name: Send newsletter email
         env:

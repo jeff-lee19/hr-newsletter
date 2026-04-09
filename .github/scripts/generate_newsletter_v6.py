@@ -90,6 +90,9 @@ def call_section_generation(section, week_start, week_end):
 - label은 정확히 1개만 노무, 나머지 2개는 {section['non_labor_label']}
 - published_date는 반드시 집계 기간 안의 YYYY-MM-DD
 - 실제 원문 링크만 사용
+- title, summary, hr_takeaway는 반드시 자연스러운 한국어로 작성
+- title은 원문 영어 제목을 그대로 복사하지 말고, 한국어 뉴스레터 제목처럼 번역·정리
+- summary도 영어 문장을 그대로 두지 말고 한국어 2문장 이내로 요약
 - academic 섹션이면 논문, 저널 아티클, SSRN/working paper, Harvard/INSEAD 등 case study, 기업 인사 사례 연구를 우선 사용
 - 요약은 2문장 이내
 - 찾지 못하면 지어내지 말고 아래 placeholder를 사용
