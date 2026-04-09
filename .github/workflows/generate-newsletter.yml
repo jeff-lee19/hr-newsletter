@@ -18,13 +18,32 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Generate newsletter HTML
+        shell: bash
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
-        run: python3 .github/scripts/generate_newsletter.py
+        run: |
+          set -o pipefail
+          python .github/scripts/generate_newsletter_v6.py 2>&1 | tee generator.log
+
+      - name: Write failure summary
+        if: failure()
+        shell: bash
+        run: |
+          echo '## Generator failure log' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 80 generator.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit and push changes
+        if: success()
         run: |
           if git diff --quiet; then
             echo "No newsletter changes to commit."
