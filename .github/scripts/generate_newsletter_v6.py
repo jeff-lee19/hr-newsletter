@@ -6,6 +6,7 @@ import time
 import traceback
 from datetime import datetime, timedelta
 from html import escape
+from zoneinfo import ZoneInfo
 from urllib import error, request
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -253,7 +254,7 @@ def build_html(edition_label, week_start, week_end, weekly_summary, section_payl
 
 
 def main():
-    today = datetime.now()
+    today = datetime.now(ZoneInfo("Asia/Seoul"))
     weekday = today.weekday()
     this_monday = today - timedelta(days=weekday)
     week_start_dt = this_monday - timedelta(days=7)
