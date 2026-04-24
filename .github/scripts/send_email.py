@@ -4,6 +4,7 @@ from email.message import EmailMessage
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
+import re
 
 
 required = [
@@ -32,7 +33,17 @@ newsletter_html = Path("hr_monday_newsletter.html").read_text(encoding="utf-8")
 
 today = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y년 %-m월 %-d일")
 
-subject = f"[HR 주간 뉴스레터] {today} 발행"
+
+def extract_preview(html):
+    match = re.search(r"<h2[^>]*>이번 주 핵심 브리핑</h2>\s*<div[^>]*>(.*?)</div>", html, re.DOTALL)
+    if not match:
+        return "이번 주 핵심: AI 채용, 노무 리스크, 국내 인사 변화"
+    text = re.sub(r"<[^>]+>", " ", match.group(1))
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:90]
+
+preview_text = extract_preview(newsletter_html)
+subject = f"[HR 주간 뉴스레터] {today} 발행 | {preview_text[:24]}"
 body = (
     f"이번 주 HR 뉴스레터가 발행되었습니다.\n\n"
     f"웹에서 보기: {newsletter_url}\n\n"
@@ -40,10 +51,12 @@ body = (
 )
 
 banner = (
+    '<div style="display:none;max-height:0;overflow:hidden;opacity:0;">'
+    f"{preview_text}"
+    "</div>"
     '<div style="max-width: 600px; margin: 0 auto 16px auto; font-family: Arial, sans-serif;">'
-    f'<p style="margin: 0 0 12px 0; color: #4a5568; font-size: 13px;">'
-    f'메일이 일부 잘리지 않으면 아래에서 바로 읽으실 수 있습니다. '
-    f'브라우저에서 열려면 <a href="{newsletter_url}" style="color: #1a365d; font-weight: bold;">웹에서 보기</a>'
+    f'<p style="margin: 0 0 12px 0; color: #475569; font-size: 13px; text-align: center;">'
+    f'메일이 잘리거나 브라우저에서 보려면 <a href="{newsletter_url}" style="color: #1d4ed8; font-weight: bold; text-decoration: none;">웹에서 보기</a>'
     f"</p></div>"
 )
 

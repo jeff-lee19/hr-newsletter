@@ -384,17 +384,31 @@ def safe_link(url, color):
     return f'<a href="{escape(url, quote=True)}" style="color: {color}; text-decoration: none; font-weight: bold;">원문 링크 보기</a>'
 
 
+def paragraphize(text):
+    text = str(text or "").strip()
+    if not text:
+        return ""
+    chunks = re.split(r"(?<=[.!?다요함음])\s+", text)
+    chunks = [chunk.strip() for chunk in chunks if chunk.strip()]
+    if not chunks:
+        chunks = [text]
+    return "".join(
+        f'<p style="margin: 0 0 12px 0;">{escape(chunk)}</p>' if idx < len(chunks) - 1 else f'<p style="margin: 0;">{escape(chunk)}</p>'
+        for idx, chunk in enumerate(chunks)
+    )
+
+
 def render_item(item, accent):
     return f"""
-                    <div style="background-color: #f7fafc; padding: 20px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="background-color: #f8fbff; padding: 22px; margin-bottom: 18px; border-radius: 14px; border: 1px solid #dbe3f0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                            <span style="background-color: {accent}; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold;">{escape(str(item.get('label', '')))}</span>
-                            <span style="color: #718096; font-size: 12px;">{escape(str(item.get('source_name', '')))} · {escape(fmt_date(str(item.get('published_date', ''))))}</span>
+                            <span style="background-color: {accent}; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold;">{escape(str(item.get('label', '')))}</span>
+                            <span style="color: #64748b; font-size: 13px;">{escape(str(item.get('source_name', '')))} · {escape(fmt_date(str(item.get('published_date', ''))))}</span>
                         </div>
-                        <h3 style="margin: 0 0 10px 0; color: #2d3748; font-size: 16px; font-weight: bold;">{escape(str(item.get('title', '')))}</h3>
-                        <p style="margin: 0 0 12px 0; color: #2d3748; font-size: 14px;">{escape(str(item.get('summary', '')))}</p>
-                        <p style="margin: 0 0 10px 0; color: #718096; font-size: 13px; font-weight: bold;">👉 <strong>HR 담당자 주목</strong>: {escape(str(item.get('hr_takeaway', '')))}</p>
-                        <p style="margin: 0; font-size: 13px;">{safe_link(str(item.get('url', '')), accent)}</p>
+                        <h3 style="margin: 10px 0 12px 0; color: #111827; font-size: 28px; line-height: 1.35; font-weight: 800; letter-spacing: -0.02em;">{escape(str(item.get('title', '')))}</h3>
+                        <div style="margin: 0 0 14px 0; color: #475569; font-size: 16px; line-height: 1.8;">{paragraphize(item.get('summary', ''))}</div>
+                        <div style="margin: 0 0 12px 0; background: #fff7ed; border-left: 4px solid #f59e0b; padding: 13px 14px; color: #7c5a10; font-size: 15px; line-height: 1.7; font-weight: 700;">HR 담당자 주목: {escape(str(item.get('hr_takeaway', '')))}</div>
+                        <p style="margin: 0; font-size: 15px;">{safe_link(str(item.get('url', '')), accent)}</p>
                     </div>"""
 
 
@@ -426,6 +440,7 @@ def build_html(edition_label, week_start, week_end, weekly_summary, section_payl
     ]
     checklist_html = "\n".join(f'                    <li style="margin-bottom: 8px;">{escape(item)}</li>' for item in checklist_items)
     weekly_brief = weekly_summary.get("weekly_brief") or "이번 주 HR 이슈는 AI 전환, 채용 구조 변화, 노무 리스크 관리와 함께 HR 연구 및 사례 인사이트까지 함께 봐야 한다는 점으로 요약됩니다."
+    brief_html = paragraphize(weekly_brief)
     return f"""<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -433,25 +448,25 @@ def build_html(edition_label, week_start, week_end, weekly_summary, section_payl
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HR 주간 뉴스레터 - {edition_label}</title>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f5f5f5;">
+<body style="font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 24px; background-color: #eef2f7;">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
         <tr>
-            <td style="background-color: #1a365d; padding: 40px 20px; text-align: center; color: white;">
-                <h1 style="margin: 0; font-size: 32px; font-weight: bold;">📰 HR 주간 뉴스레터</h1>
-                <p style="margin: 10px 0 0 0; font-size: 14px; color: #e0e0e0;">{edition_label} · 집계 기준 {week_start}~{week_end}</p>
+            <td style="background-color: #1f3f68; padding: 36px 28px 34px 28px; text-align: center; color: white;">
+                <h1 style="margin: 0; font-size: 40px; line-height: 1.2; letter-spacing: -0.02em; font-weight: 800;">HR 주간 뉴스레터</h1>
+                <p style="margin: 12px 0 0 0; font-size: 15px; color: #dbe4f0;">{edition_label} · 집계 기준 {week_start}~{week_end}</p>
             </td>
         </tr>
         <tr>
-            <td style="padding: 30px 20px; background-color: white; border-bottom: 3px solid #e0e0e0;">
-                <h2 style="margin: 0; color: #2d3748; font-size: 18px;">이번 주 한 줄 브리핑</h2>
-                <p style="margin: 10px 0 0 0; color: #718096; font-size: 14px;">{escape(weekly_brief)}</p>
+            <td style="padding: 28px; background-color: white; border-bottom: 1px solid #e5e7eb;">
+                <h2 style="margin: 0 0 14px 0; color: #111827; font-size: 24px; letter-spacing: -0.02em; font-weight: 800;">이번 주 핵심 브리핑</h2>
+                <div style="color: #475569; font-size: 16px; line-height: 1.8;">{brief_html}</div>
             </td>
         </tr>
 {sections_html}
         <tr>
-            <td style="padding: 30px 20px; background-color: #edf2f7; border-top: 1px solid #e0e0e0;">
-                <h2 style="margin: 0 0 15px 0; color: #2d3748; font-size: 18px;">✅ 이번 주 HR 체크리스트</h2>
-                <ul style="margin: 0; padding-left: 20px; color: #4a5568; font-size: 14px;">
+            <td style="padding: 24px 28px; background-color: #eef4fb; border-top: 1px solid #dbe3f0;">
+                <h2 style="margin: 0 0 15px 0; color: #111827; font-size: 22px; font-weight: 800;">이번 주 체크포인트</h2>
+                <ul style="margin: 0; padding-left: 22px; color: #475569; font-size: 15px; line-height: 1.9;">
 {checklist_html}
                 </ul>
             </td>
