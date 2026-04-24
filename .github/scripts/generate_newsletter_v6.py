@@ -6,6 +6,7 @@ import time
 import traceback
 from datetime import datetime, timedelta
 from html import escape
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 from urllib import error, request
 
@@ -22,6 +23,89 @@ SECTION_CONFIG = [
     {"id": "consulting", "title": "📊 컨설팅이 제안하는 방법론", "accent": "#553c9a", "non_labor_label": "컨설팅", "focus": "컨설팅 펌의 HR/노무/AI 인력 운영 관점, operating model, workforce strategy"},
     {"id": "academic", "title": "📚 HR 논문·Case Study", "accent": "#0f766e", "non_labor_label": "연구", "focus": "HR 관련 학술 논문, 인사조직 연구, 노동시장 연구, 기업 인사 케이스 스터디, 조직문화·리더십·보상·채용 관련 case study"},
 ]
+
+SOURCE_TIER_A_DOMAINS = {
+    "reuters.com",
+    "bloomberg.com",
+    "ft.com",
+    "wsj.com",
+    "nytimes.com",
+    "shrm.org",
+    "hrdive.com",
+    "hrexecutive.com",
+    "deloitte.com",
+    "mckinsey.com",
+    "bcg.com",
+    "mercer.com",
+    "gartner.com",
+    "hbr.org",
+    "ssrn.com",
+    "sciencedirect.com",
+    "sagepub.com",
+    "wiley.com",
+    "springer.com",
+    "tandfonline.com",
+    "frontiersin.org",
+    "nature.com",
+    "harvard.edu",
+    "insead.edu",
+    "oecd.org",
+    "ilo.org",
+    "ec.europa.eu",
+    "gov.uk",
+    "bls.gov",
+    "dol.gov",
+    "moel.go.kr",
+    "kli.re.kr",
+    "korea.kr",
+    "sedaily.com",
+    "joongang.co.kr",
+    "hankyung.com",
+    "chosun.com",
+    "yna.co.kr",
+    "newsis.com",
+}
+
+SOURCE_TIER_B_DOMAINS = {
+    "fortune.com",
+    "businessinsider.com",
+    "forbes.com",
+    "cnbc.com",
+    "marketwatch.com",
+    "fastcompany.com",
+    "techcrunch.com",
+    "theinformation.com",
+    "koreajoongangdaily.joins.com",
+    "kedglobal.com",
+    "koreatimes.co.kr",
+    "mk.co.kr",
+    "zdnet.com",
+    "zdnet.co.kr",
+    "cio.com",
+    "computerworld.com",
+    "hrgrapevine.com",
+    "peoplemanagement.co.uk",
+}
+
+SOURCE_TIER_C_DOMAINS = {
+    "benzinga.com",
+    "pymnts.com",
+    "tomshardware.com",
+    "inc.com",
+    "entrepreneur.com",
+}
+
+SOURCE_TIER_D_DOMAINS = {
+    "yahoo.com",
+    "msn.com",
+    "medium.com",
+    "substack.com",
+    "blogspot.com",
+    "wordpress.com",
+    "tumblr.com",
+    "reddit.com",
+    "pinterest.com",
+}
 
 
 def log(message):
@@ -77,6 +161,121 @@ def edition_label_for(start_date):
     return f"{start_date.year}년 {start_date.month}월 {week_index}주"
 
 
+def normalize_domain(url):
+    if not url:
+        return ""
+    hostname = urlparse(url).netloc.lower()
+    if hostname.startswith("www."):
+        hostname = hostname[4:]
+    return hostname
+
+
+def match_domain(hostname, candidates):
+    return any(hostname == domain or hostname.endswith(f".{domain}") for domain in candidates)
+
+
+def source_tier_for(url):
+    hostname = normalize_domain(url)
+    if not hostname:
+        return "D", hostname
+    if match_domain(hostname, SOURCE_TIER_A_DOMAINS):
+        return "A", hostname
+    if match_domain(hostname, SOURCE_TIER_B_DOMAINS):
+        return "B", hostname
+    if match_domain(hostname, SOURCE_TIER_C_DOMAINS):
+        return "C", hostname
+    if match_domain(hostname, SOURCE_TIER_D_DOMAINS):
+        return "D", hostname
+    return "C", hostname
+
+
+def parse_iso_date(date_str):
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def build_placeholder(section, week_end, reason):
+    return {
+        "label": section["non_labor_label"],
+        "source_name": "확인 불가",
+        "published_date": week_end,
+        "title": "이번 주 확인 가능한 공개 자료 없음",
+        "summary": "집계 기간 안의 확인 가능한 공개 자료를 충분히 찾지 못했습니다.",
+        "hr_takeaway": reason,
+        "url": "",
+    }
+
+
+def normalize_item(item, section, week_start, week_end):
+    if not isinstance(item, dict):
+        return None, "invalid-payload"
+
+    url = str(item.get("url", "")).strip()
+    published_date = str(item.get("published_date", "")).strip()
+    title = str(item.get("title", "")).strip()
+    summary = str(item.get("summary", "")).strip()
+    hr_takeaway = str(item.get("hr_takeaway", "")).strip()
+
+    if not url.startswith(("http://", "https://")):
+        return None, "missing-url"
+
+    tier, hostname = source_tier_for(url)
+    if tier == "D":
+        return None, f"excluded-source:{hostname or 'unknown'}"
+
+    published_dt = parse_iso_date(published_date)
+    week_start_dt = parse_iso_date(week_start)
+    week_end_dt = parse_iso_date(week_end)
+    if not published_dt or not week_start_dt or not week_end_dt:
+        return None, "invalid-date"
+    if published_dt < week_start_dt or published_dt > week_end_dt:
+        return None, f"out-of-range:{published_date}"
+
+    if not title or not summary or not hr_takeaway:
+        return None, "missing-fields"
+
+    normalized = dict(item)
+    normalized["url"] = url
+    normalized["published_date"] = published_date
+    normalized["_tier"] = tier
+    normalized["_hostname"] = hostname
+    return normalized, None
+
+
+def select_items(items, section, week_start, week_end):
+    normalized_items = []
+    rejected_reasons = []
+    seen_urls = set()
+
+    for item in items:
+        normalized, reject_reason = normalize_item(item, section, week_start, week_end)
+        if reject_reason:
+            rejected_reasons.append(reject_reason)
+            continue
+        if normalized["url"] in seen_urls:
+            rejected_reasons.append(f"duplicate-url:{normalized['url']}")
+            continue
+        seen_urls.add(normalized["url"])
+        normalized_items.append(normalized)
+
+    tier_priority = {"A": 0, "B": 1, "C": 2}
+    normalized_items.sort(key=lambda x: (tier_priority.get(x["_tier"], 9), x["published_date"], x["source_name"]))
+
+    selected = normalized_items[:3]
+    while len(selected) < 3:
+        reason = "수동 보강이 필요합니다."
+        if rejected_reasons:
+            reason = f"출처 신뢰도·날짜·링크 기준을 충족한 자료가 부족해 수동 보강이 필요합니다. ({rejected_reasons[0]})"
+        selected.append(build_placeholder(section, week_end, reason))
+
+    for item in selected:
+        item.pop("_tier", None)
+        item.pop("_hostname", None)
+    return selected
+
+
 def call_section_generation(section, week_start, week_end):
     prompt = f"""
 당신은 HR 편집장입니다.
@@ -91,6 +290,12 @@ def call_section_generation(section, week_start, week_end):
 - label은 정확히 1개만 노무, 나머지 2개는 {section['non_labor_label']}
 - published_date는 반드시 집계 기간 안의 YYYY-MM-DD
 - 실제 원문 링크만 사용
+- A/B 등급 출처를 우선 사용
+- A등급 예시: 정부·규제기관·학술저널·대학/연구기관 원문·Reuters/Bloomberg/FT/SHRM/HR Dive/Deloitte/McKinsey/BCG/Mercer/HBR
+- B등급 예시: Fortune/Business Insider/CNBC/국내 주요 경제지·전문지
+- C등급은 A/B가 부족할 때만 예외적으로 사용
+- D등급(재전재/출처 불명/블로그/포털 재가공/커뮤니티)은 제외
+- 재인용 기사보다 원문·1차 취재·공식 발표를 우선
 - title, summary, hr_takeaway는 반드시 자연스러운 한국어로 작성
 - title은 원문 영어 제목을 그대로 복사하지 말고, 한국어 뉴스레터 제목처럼 번역·정리
 - summary도 영어 문장을 그대로 두지 말고 한국어 2문장 이내로 요약
@@ -117,7 +322,11 @@ JSON 외 텍스트 금지.
     response = post_openai(payload)
     raw_text = extract_text(response)
     log(f"Section {section['id']} raw response length: {len(raw_text)}")
-    return parse_json_text(raw_text)
+    parsed = parse_json_text(raw_text)
+    items = parsed.get("items") if isinstance(parsed, dict) else []
+    if not isinstance(items, list):
+        items = []
+    return {"section_id": section["id"], "items": select_items(items, section, week_start, week_end)}
 
 
 def call_weekly_summary(section_payloads, week_start, week_end):
