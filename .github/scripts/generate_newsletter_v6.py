@@ -17,11 +17,106 @@ if not OPENAI_API_KEY:
 OPENAI_MODEL = os.getenv("OPENAI_MODEL") or "gpt-5-mini"
 
 SECTION_CONFIG = [
-    {"id": "global", "title": "🌐 글로벌 빅테크·HR 동향", "accent": "#2b6cb0", "non_labor_label": "글로벌", "focus": "글로벌 빅테크와 해외 HR 환경 변화, AI 채용, 비자, 인재 유지, 노동 이슈"},
-    {"id": "korea", "title": "🏢 국내 대기업 이슈", "accent": "#744210", "non_labor_label": "대기업", "focus": "국내 대기업 HR, 채용, AI 전환, 임단협, 재고용, 노동시장 변화"},
-    {"id": "venture", "title": "🚀 벤처·HR Tech 트렌드", "accent": "#276749", "non_labor_label": "벤처", "focus": "스타트업, HR Tech, people analytics, AI HR software, 인력 수급과 노무 이슈"},
-    {"id": "consulting", "title": "📊 컨설팅이 제안하는 방법론", "accent": "#553c9a", "non_labor_label": "컨설팅", "focus": "컨설팅 펌의 HR/노무/AI 인력 운영 관점, operating model, workforce strategy"},
-    {"id": "academic", "title": "📚 HR 논문·Case Study", "accent": "#0f766e", "non_labor_label": "연구", "focus": "HR 관련 학술 논문, 인사조직 연구, 노동시장 연구, 기업 인사 케이스 스터디, 조직문화·리더십·보상·채용 관련 case study"},
+    {
+        "id": "global",
+        "title": "🌐 글로벌 빅테크·HR 동향",
+        "accent": "#2b6cb0",
+        "non_labor_label": "글로벌",
+        "focus": "글로벌 빅테크의 채용, 감원, 조직개편, 보상, 평가, AI 도입, 글로벌 노동/규제 이슈",
+        "selection_rules": [
+            "글로벌 빅테크의 채용, 감원, 조직개편, 보상, 평가 변화",
+            "AI 도입이 HR 운영에 미치는 변화",
+            "글로벌 노동/규제 이슈 중 HR 운영에 직접 연결되는 사안",
+        ],
+        "exclusion_rules": [
+            "비자·영주권·이민 행정 자체가 중심인 기사",
+            "일반 기술 제품 출시 뉴스",
+            "주가·실적·투자 중심 기사",
+        ],
+        "exception_rules": [
+            "비자·이민은 대규모 채용전략 변화나 감원과 직접 연결될 때만 허용",
+        ],
+    },
+    {
+        "id": "korea",
+        "title": "🏢 국내 대기업 이슈",
+        "accent": "#744210",
+        "non_labor_label": "대기업",
+        "focus": "국내 주요 대기업의 채용, 인사제도, 평가, 보상, 조직개편, 임단협, 재고용 이슈",
+        "selection_rules": [
+            "삼성, LG, SK, 현대차 등 주요 대기업의 HR 운영 변화",
+            "대기업 단위 임단협, 노사 이슈",
+            "재고용, 숙련인력 활용, 직무 재설계",
+        ],
+        "exclusion_rules": [
+            "일반 고용시장 기사",
+            "특정 기업 HR 실행과 연결되지 않는 산업 일반 뉴스",
+            "단순 실적·투자 기사",
+        ],
+        "exception_rules": [
+            "산업 정책 기사라도 대기업 채용·인사 운영 영향이 명확하면 허용",
+        ],
+    },
+    {
+        "id": "venture",
+        "title": "🚀 벤처·HR Tech 트렌드",
+        "accent": "#276749",
+        "non_labor_label": "벤처",
+        "focus": "스타트업과 HR Tech의 채용, 평가, 교육, 조직운영, people analytics, AI HR software 변화",
+        "selection_rules": [
+            "채용, 평가, 교육, 조직운영과 직접 연결된 HR Tech 변화",
+            "스타트업의 인재 운영 방식 변화",
+            "벤처의 노무·인력 운영 이슈",
+        ],
+        "exclusion_rules": [
+            "일반 투자 유치 기사",
+            "제품 출시만 있고 HR 운영 의미가 약한 기사",
+            "HR과 무관한 SaaS 기사",
+        ],
+        "exception_rules": [
+            "투자 기사라도 HR 운영 방식 변화가 명확하면 허용",
+        ],
+    },
+    {
+        "id": "consulting",
+        "title": "📊 컨설팅이 제안하는 방법론",
+        "accent": "#553c9a",
+        "non_labor_label": "컨설팅",
+        "focus": "컨설팅 펌과 전문기관의 operating model, workforce planning, AI 거버넌스, 조직설계 프레임",
+        "selection_rules": [
+            "McKinsey, Deloitte, BCG, Mercer, Gartner, SHRM 등의 HR 실행 프레임",
+            "operating model, workforce planning, AI 거버넌스, 조직설계 방법론",
+            "실무 적용 가능한 프레임워크, 체크리스트, 실행모델",
+        ],
+        "exclusion_rules": [
+            "단순 회사 홍보",
+            "서비스 소개",
+            "사례 없는 선언형 글",
+        ],
+        "exception_rules": [
+            "벤더 자료라도 실행 프레임이 충분히 구체적이면 제한적으로 허용",
+        ],
+    },
+    {
+        "id": "academic",
+        "title": "📚 HR 논문·Case Study",
+        "accent": "#0f766e",
+        "non_labor_label": "연구",
+        "focus": "HR 관련 학술 논문, working paper, 대학·연구기관 연구, Harvard/INSEAD 등 case study",
+        "selection_rules": [
+            "peer-reviewed 논문",
+            "working paper, SSRN, 대학·연구기관 연구",
+            "Harvard, INSEAD 등 case study",
+        ],
+        "exclusion_rules": [
+            "일반 뉴스 기사",
+            "단순 칼럼",
+            "보도자료",
+        ],
+        "exception_rules": [
+            "학술 자료가 부족할 경우 기업 인사 사례를 다룬 심층 분석 자료까지 허용",
+        ],
+    },
 ]
 
 SOURCE_TIER_A_DOMAINS = {
@@ -107,6 +202,20 @@ SOURCE_TIER_D_DOMAINS = {
     "pinterest.com",
 }
 
+KOREA_COMPANY_KEYWORDS = [
+    "삼성", "lg", "sk", "현대", "기아", "포스코", "한화", "롯데", "cj", "두산", "hd현대", "네이버", "카카오", "쿠팡", "대기업",
+]
+
+GLOBAL_IMMIGRATION_KEYWORDS = ["h-1b", "비자", "영주권", "visa", "immigration", "green card", "이민", "취업비자", "비자블렛틴"]
+GLOBAL_HR_CONNECTION_KEYWORDS = ["채용", "hiring", "recruit", "recruitment", "layoff", "감원", "조직개편", "workforce", "talent", "인재", "고용", "직무", "보상", "평가"]
+
+VENTURE_HR_KEYWORDS = ["hr", "채용", "평가", "교육", "조직", "workforce", "talent", "people analytics", "hr tech", "리스킬", "업스킬", "노무"]
+VENTURE_GENERAL_STARTUP_KEYWORDS = ["series a", "series b", "투자유치", "펀딩", "funding", "raised", "seed round", "valuation"]
+
+CONSULTING_METHOD_KEYWORDS = ["framework", "methodology", "operating model", "workforce", "governance", "checklist", "playbook", "전략", "모델", "프레임", "거버넌스", "조직설계"]
+ACADEMIC_ALLOWED_KEYWORDS = ["study", "research", "paper", "journal", "working paper", "ssrn", "case study", "연구", "논문", "사례"]
+ACADEMIC_ALLOWED_DOMAIN_HINTS = ["ssrn.com", "sciencedirect.com", "sagepub.com", "wiley.com", "springer.com", "tandfonline.com", "frontiersin.org", "nature.com", "harvard.edu", "insead.edu", "oecd.org", "ilo.org", "kli.re.kr"]
+
 
 def log(message):
     print(message, flush=True)
@@ -159,6 +268,10 @@ def parse_json_text(raw_text):
 def edition_label_for(start_date):
     week_index = ((start_date.day - 1) // 7) + 1
     return f"{start_date.year}년 {start_date.month}월 {week_index}주"
+
+
+def format_rules(rules):
+    return "\n".join(f"  - {rule}" for rule in rules)
 
 
 def normalize_domain(url):
@@ -244,6 +357,42 @@ def normalize_item(item, section, week_start, week_end):
     return normalized, None
 
 
+def passes_section_rules(item, section):
+    text = " ".join(
+        str(item.get(key, "")).lower()
+        for key in ("title", "summary", "hr_takeaway", "source_name")
+    )
+    hostname = str(item.get("_hostname", "")).lower()
+
+    if section["id"] == "global":
+        has_immigration = any(keyword in text for keyword in GLOBAL_IMMIGRATION_KEYWORDS)
+        has_hr_connection = any(keyword in text for keyword in GLOBAL_HR_CONNECTION_KEYWORDS)
+        if has_immigration and not has_hr_connection:
+            return False, "global-immigration-without-hr-context"
+
+    if section["id"] == "korea":
+        if not any(keyword in text for keyword in KOREA_COMPANY_KEYWORDS) and "노무" not in str(item.get("label", "")):
+            return False, "korea-without-major-company-signal"
+
+    if section["id"] == "venture":
+        has_hr_signal = any(keyword in text for keyword in VENTURE_HR_KEYWORDS)
+        has_funding_signal = any(keyword in text for keyword in VENTURE_GENERAL_STARTUP_KEYWORDS)
+        if has_funding_signal and not has_hr_signal:
+            return False, "venture-funding-without-hr-relevance"
+
+    if section["id"] == "consulting":
+        if item.get("_tier") == "C" and not any(keyword in text for keyword in CONSULTING_METHOD_KEYWORDS):
+            return False, "consulting-promo-without-method"
+
+    if section["id"] == "academic":
+        has_academic_signal = any(keyword in text for keyword in ACADEMIC_ALLOWED_KEYWORDS)
+        has_allowed_domain = any(hostname == domain or hostname.endswith(f".{domain}") for domain in ACADEMIC_ALLOWED_DOMAIN_HINTS)
+        if not has_academic_signal and not has_allowed_domain:
+            return False, "academic-without-study-signal"
+
+    return True, None
+
+
 def select_items(items, section, week_start, week_end):
     normalized_items = []
     rejected_reasons = []
@@ -253,6 +402,10 @@ def select_items(items, section, week_start, week_end):
         normalized, reject_reason = normalize_item(item, section, week_start, week_end)
         if reject_reason:
             rejected_reasons.append(reject_reason)
+            continue
+        section_ok, section_reason = passes_section_rules(normalized, section)
+        if not section_ok:
+            rejected_reasons.append(section_reason)
             continue
         if normalized["url"] in seen_urls:
             rejected_reasons.append(f"duplicate-url:{normalized['url']}")
@@ -285,6 +438,12 @@ def call_section_generation(section, week_start, week_end):
 - 집계 기간: {week_start} ~ {week_end}
 - 섹션: {section['title']}
 - 초점: {section['focus']}
+- 채택 기준:
+{format_rules(section['selection_rules'])}
+- 제외 기준:
+{format_rules(section['exclusion_rules'])}
+- 예외 허용 기준:
+{format_rules(section['exception_rules'])}
 - 정확히 3개 항목
 - 각 항목 필드: label, source_name, published_date, title, summary, hr_takeaway, url
 - label은 정확히 1개만 노무, 나머지 2개는 {section['non_labor_label']}
